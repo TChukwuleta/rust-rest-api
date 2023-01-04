@@ -17,6 +17,9 @@ async fn index() -> impl Responder {
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
     env_logger::init();
+    let redis_port = env::var("REDIS_PORT").expect("Redis environment port not found");
+    let redis_host = env::var("REDIS_HOST").expect("Redis environment host not found");
+
     let mut listenfd = ListenFd::from_env();
     let mut server = HttpServer::new(|| 
         App::new()

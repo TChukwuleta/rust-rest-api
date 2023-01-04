@@ -2,7 +2,8 @@ use crate::{user::model::User, api_error::ApiError};
 use actix_web::{get, post, put, delete, web, HttpResponse};
 use chrono::Utc;
 use super::dbconn::MongoConnection;
-use  crate::user::model::UserMessage;
+use crate::user::model::UserMessage;
+use crate::user::email_verification::{EmailVerificationToken, EmailVerificationTokenMessage};
 
 #[get("/users")]
 async fn find_all(db: web::Data<MongoConnection>) -> Result<HttpResponse, ApiError>{
@@ -25,6 +26,12 @@ async fn find(db: web::Data<MongoConnection>, id: web::Path<String>) -> Result<H
     }
 }
 
+#[post("/invite")]
+pub fn invite(db: web::Data<MongoConnection>, body: web::Json<EmailVerificationTokenMessage>) -> Result<HttpResponse, ApiError> {
+    let body = body.into_inner();
+    let token = db.createemailtoken(body);
+}
+
 #[post("/register")]
 async fn create(db: web::Data<MongoConnection>, user: web::Json<UserMessage>) -> Result<HttpResponse, ApiError> {
     let mut user_detail = User {
@@ -42,6 +49,19 @@ async fn create(db: web::Data<MongoConnection>, user: web::Json<UserMessage>) ->
     match new_user {
         Ok(v) => Ok(HttpResponse::Ok().json(v)),
         Err(e) => Err(ApiError::new(2, format!("User creation was not successful: {}",e)))
+    }
+}
+
+#[post("/login")]
+async fn login(db: web::Data<MongoConnection>, user: web::Json<UserMessage>) -> Result<HttpResponse, ApiError> {
+    let user = db.findbyemail(&user.email).unwrap();
+
+    let is_valid = user.match_password(&user.password);
+    if is_valid == true {
+        Ok(HttpResponse::Ok().body("User login was successful"))
+    }
+    else {
+        Err(ApiError::new(400, format!("Credentials not valid")))
     }
 }
 
@@ -105,5 +125,6 @@ pub fn init_routes(cfg: &mut web::ServiceConfig){
     cfg.service(find);
     cfg.service(create);
     cfg.service(update);
+    cfg.service(login);
     cfg.service(delete);
 }

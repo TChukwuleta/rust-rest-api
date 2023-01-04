@@ -5,7 +5,7 @@ use rand::{Rng, thread_rng, distributions::Alphanumeric};
 use argon2::Config;
 
 
-// User request model
+// User sign up model
 #[derive(Serialize, Deserialize)]
 pub struct UserMessage {
     pub email: String,

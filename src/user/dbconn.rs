@@ -1,11 +1,13 @@
+use chrono::Utc;
 use mongodb::{sync::{Collection, Client}, bson::{extjson::de::Error, oid::ObjectId, doc}, results::{DeleteResult, InsertOneResult, UpdateResult}};
-use super::model::User;
+use super::{model::User, email_verification::{EmailVerificationToken, EmailVerificationTokenMessage}};
 use dotenv::dotenv;
 use std::env;
 
 
 pub struct MongoConnection {
-    col: Collection<User>
+    col: Collection<User>,
+    emailcol: Collection<EmailVerificationToken>
 }
 
 impl MongoConnection {
@@ -18,7 +20,8 @@ impl MongoConnection {
         let client = Client::with_uri_str(url).unwrap();
         let db = client.database("restapi");
         let col: Collection<User> = db.collection("User");
-        MongoConnection { col }
+        let emailcol: Collection<EmailVerificationToken> = db.collection("EmailToken");
+        MongoConnection { col, emailcol }
     }
 
     pub fn getall(&self) -> Result<Vec<User>, Error> {
@@ -31,6 +34,12 @@ impl MongoConnection {
         let obj_id = ObjectId::parse_str(id).unwrap();
         let filter = doc! {"_id": obj_id};
         let user = self.col.find_one(filter, None).expect("Error retrieving user's detail");
+        Ok(user.unwrap())
+    }
+
+    pub fn findbyemail(&self, email: &String) -> Result<User, Error> {
+        let filter = doc! {"email": email};
+        let user = self.col.find_one(filter, None).expect("Error retrieving user by email");
         Ok(user.unwrap())
     }
 
@@ -68,5 +77,22 @@ impl MongoConnection {
         let filter = doc! {"_id": obj_id};
         let user = self.col.delete_one(filter, None).expect("Error occured while deleting user");
         Ok(user)
+    }
+
+    pub fn createemailtoken(&self, emailtokenreq: EmailVerificationTokenMessage) -> Result<InsertOneResult, Error> {
+        let new_guy = EmailVerificationToken{
+            id: None,
+            email: emailtokenreq.email,
+            expires_at: Utc::now().naive_utc(),
+            created_at: Utc::now().naive_utc()
+        };
+        let newemailtoken = self.emailcol.insert_one(new_guy, None).expect("Error occured wile creating email token");
+        Ok(newemailtoken)
+    }
+
+    pub fn deleteemailtoken(&self, id: &String) -> Result<DeleteResult, Error> {
+        let filter = doc! {"id": id};
+        let token = self.emailcol.delete_one(filter, None).expect("Error deleting email token");
+        Ok(token)
     }
 }
