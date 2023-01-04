@@ -15,7 +15,6 @@ async fn index() -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-
     dotenv().ok();
     env_logger::init();
     let mut listenfd = ListenFd::from_env();

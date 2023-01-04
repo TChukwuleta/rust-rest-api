@@ -1,4 +1,5 @@
 use actix_web::{http::StatusCode, HttpResponse, ResponseError};
+use log::error;
 use serde::Deserialize;
 use serde_json::json;
 use std::fmt::{Display, Formatter, Result};
@@ -23,6 +24,17 @@ impl Display for ApiError {
 
 impl ResponseError for ApiError {
     fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
-        
+        let status_code = match StatusCode::from_u16(self.status_code) {
+            Ok(status_code) => status_code,
+            Err(_) => StatusCode::INTERNAL_SERVER_ERROR
+        };
+        let message = match status_code.as_u16() < 500 {
+            true => self.message.clone(),
+            false => {
+                error!("{}", self.message);
+                "Internal Server error".to_string()
+            }
+        };
+        HttpResponse::build(status_code).json(json!({"message": message}))
     }
 }
